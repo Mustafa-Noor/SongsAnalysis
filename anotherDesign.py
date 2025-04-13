@@ -41,13 +41,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Load data
-@st.cache_data
-def load_data():
-    url = "https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2020/2020-01-21/spotify_songs.csv"
-    return pd.read_csv(url)
-
-df = load_data()
+df = pd.read_csv("spotify_songs.csv")
 
 # Sidebar filters
 st.sidebar.title("FILTERS")
@@ -371,15 +365,24 @@ with tab2:
 
 with tab3:
     st.header("🎵 Song Recommendation")
+    
+    # User inputs for filtering songs
     genre_input = st.selectbox("Select Genre", df['playlist_genre'].unique())
     energy_input = st.slider("Select Energy Level", 0.0, 1.0, 0.5)
     valence_input = st.slider("Select Valence (Mood Positiveness)", 0.0, 1.0, 0.5)
+    danceability_input = st.slider("Select Danceability", 0.0, 1.0, 0.5)
 
+    # Filter songs based on user inputs
     recommended_songs = df[
         (df['playlist_genre'] == genre_input) &
         (df['energy'] >= energy_input - 0.1) & (df['energy'] <= energy_input + 0.1) &
-        (df['valence'] >= valence_input - 0.1) & (df['valence'] <= valence_input + 0.1)
+        (df['valence'] >= valence_input - 0.1) & (df['valence'] <= valence_input + 0.1) &
+        (df['danceability'] >= danceability_input - 0.1) & (df['danceability'] <= danceability_input + 0.1)
     ].head(5)
 
+    # Display recommended songs
     st.subheader("Recommended Songs")
-    st.table(recommended_songs[['track_name', 'track_artist', 'energy', 'valence']])
+    if not recommended_songs.empty:
+        st.table(recommended_songs[['track_name', 'track_artist', 'energy', 'valence', 'danceability']])
+    else:
+        st.write("No songs match your criteria. Try adjusting the filters.")
