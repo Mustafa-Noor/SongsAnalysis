@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
+import plotly.express as px
 
 # Set up the page
 st.set_page_config(layout="wide", page_title="Muzify", page_icon="🎧")
@@ -18,7 +19,7 @@ st.markdown("""
     
     .main {
         background-color: #000000; /* Black background */
-        color: #BB86FC; /* Flutter app's primary text color */
+        color: #BB86FC; /* App's primary text color */
     }
     
     .st-bw {
@@ -224,11 +225,10 @@ with tab1:
         plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', title="Genre")
         plt.tight_layout()
         st.pyplot(fig)
-
     # Row 3: Temporal analysis
-    st.subheader("⏳ Trends Over Time")
+    st.markdown("<h2 style='color:#BB86FC;'>⏳ <b>Trends Over Time</b></h2>", unsafe_allow_html=True)
     filtered_df['year'] = filtered_df['track_album_release_date'].str[:4].astype(int)
-
+    
     # Group data by year and calculate means
     yearly_data = filtered_df.groupby('year').agg({
         'track_popularity': 'mean',
@@ -238,65 +238,69 @@ with tab1:
         'track_id': 'count'  # Count songs per year
     }).reset_index()
     yearly_data.rename(columns={'track_id': 'song_count'}, inplace=True)
-
+    
     row3_col1, row3_col2 = st.columns(2)
-
+    
     with row3_col1:
-        # Line chart for features over time
-        st.write("##### Audio Features Trends")
-        
-        # Allow user to select which features to display
+        st.markdown("##### 🎚️ <span style='color:#BB86FC'>Audio Features Trends</span>", unsafe_allow_html=True)
+    
         time_features = st.multiselect(
             "Select Features to Display",
             ['danceability', 'energy', 'valence', 'track_popularity'],
             default=['danceability', 'energy', 'valence']
         )
-        
+    
         if time_features:
-            fig, ax = plt.subplots(figsize=(8, 6))
-            
-            for col in time_features:
-                label = "Popularity" if col == "track_popularity" else col.capitalize()
-                value_col = col
+            with st.spinner("Generating interactive trend chart..."):
+                plot_df = yearly_data.copy()
+                plot_df['track_popularity_norm'] = plot_df['track_popularity'] / 100
+    
+                # Melt data to long format for plotly
+                melted = pd.melt(plot_df, id_vars='year', 
+                                 value_vars=[f if f != 'track_popularity' else 'track_popularity_norm' for f in time_features],
+                                 var_name='Feature', value_name='Value')
                 
-                # Normalize popularity to 0-1 scale if selected
-                if col == 'track_popularity':
-                    yearly_data['track_popularity_norm'] = yearly_data['track_popularity'] / 100
-                    value_col = 'track_popularity_norm'
-                    
-                ax.plot(yearly_data['year'], yearly_data[value_col], 
-                        label=label, linewidth=2, marker='o')
-            
-            ax.set_facecolor('#121212')
-            ax.set_title("Audio Features Over Time", color="#BB86FC")
-            ax.set_xlabel("Year", color="#BB86FC")
-            ax.set_ylabel("Feature Value (0-1 scale)", color="#BB86FC")
-            ax.tick_params(colors="#BB86FC")
-            ax.legend(facecolor='#121212', edgecolor='#BB86FC', labelcolor='#BB86FC')
-            plt.setp(ax.spines.values(), color="#BB86FC")
-            
-            plt.tight_layout()
-            st.pyplot(fig)
+                # Rename 'track_popularity_norm' back to 'Popularity' for display
+                melted['Feature'] = melted['Feature'].replace({'track_popularity_norm': 'Popularity'})
+                melted['Feature'] = melted['Feature'].str.capitalize()
+    
+                fig = px.line(
+                    melted, x='year', y='Value', color='Feature',
+                    markers=True, template='plotly_dark',
+                    title="Audio Features Over Time"
+                )
+                fig.update_traces(line=dict(width=3))
+                fig.update_layout(
+                    title_font_color='#BB86FC',
+                    legend_font_color='#BB86FC',
+                    font=dict(color="#BB86FC"),
+                    plot_bgcolor='#121212',
+                    paper_bgcolor='#121212',
+                )
+                st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("Select at least one feature to display")
-
+    
     with row3_col2:
-        # Song count by year
-        st.write("##### Music Production by Year")
-        
-        fig, ax = plt.subplots(figsize=(8, 6))
-        sns.barplot(x='year', y='song_count', data=yearly_data, color="#BB86FC", ax=ax)
-        
-        ax.set_facecolor('#121212')
-        ax.set_title("Number of Songs Released by Year", color="#BB86FC")
-        ax.set_xlabel("Year", color="#BB86FC")
-        ax.set_ylabel("Number of Songs", color="#BB86FC")
-        ax.tick_params(colors="#BB86FC", rotation=45)
-        plt.setp(ax.spines.values(), color="#BB86FC")
-        
-        plt.tight_layout()
-        st.pyplot(fig)
-
+        st.markdown("##### 📊 <span style='color:#BB86FC'>Music Production by Year</span>", unsafe_allow_html=True)
+    
+        with st.spinner("Loading song production stats..."):
+            fig2 = px.bar(
+                yearly_data, x='year', y='song_count',
+                labels={'song_count': 'Number of Songs', 'year': 'Year'},
+                template='plotly_dark',
+                color_discrete_sequence=['#BB86FC']
+            )
+            fig2.update_layout(
+                title="Number of Songs Released by Year",
+                title_font_color='#BB86FC',
+                font=dict(color="#BB86FC"),
+                plot_bgcolor='#121212',
+                paper_bgcolor='#121212',
+                xaxis=dict(tickangle=45)
+            )
+            st.plotly_chart(fig2, use_container_width=True)
+    
 with tab2:
     st.header("Top Artists")
     
