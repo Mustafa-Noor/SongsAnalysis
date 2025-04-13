@@ -78,106 +78,212 @@ st.markdown("### Futuristic Music Analytics Dashboard")
 tab1, tab2, tab3 = st.tabs(["Analysis", "Top Artists", "Song Recommendation"])
 
 with tab1:
-    st.header("📊 Analysis")
     
-    # Row for selecting features
-    st.subheader("Customize Analysis")
-    selected_feature = st.selectbox("Select Feature for Analysis", ["track_popularity", "danceability", "energy", "valence", "tempo"])
-    selected_genre = st.selectbox("Select Genre for Filtering", filtered_df['playlist_genre'].unique())
-    
-    # Filter data based on selected genre
-    genre_filtered_df = filtered_df[filtered_df['playlist_genre'] == selected_genre]
-    
-    # Row for visualizations
-    col1, col2, col3 = st.columns(3)
+    # Display basic stats
+    st.subheader("📈 Overview Statistics")
+    stat_col1, stat_col2, stat_col3, stat_col4 = st.columns(4)
 
-    with col1:
-        # Bar graph for selected feature
-        st.subheader(f"Distribution of {selected_feature.capitalize()}")
-        fig, ax = plt.subplots(figsize=(4, 4))
-        sns.histplot(genre_filtered_df[selected_feature], kde=True, color="#BB86FC", ax=ax)
-        ax.set_facecolor('#000000')
-        ax.set_title(f"{selected_feature.capitalize()} Distribution", color="#BB86FC")
+    with stat_col1:
+        st.metric("Total Songs", f"{len(filtered_df):,}")
+
+    with stat_col2:
+        avg_popularity = round(filtered_df['track_popularity'].mean(), 1)
+        st.metric("Avg. Popularity", f"{avg_popularity}")
+
+    with stat_col3:
+        avg_dance = round(filtered_df['danceability'].mean(), 2)
+        st.metric("Avg. Danceability", f"{avg_dance}")
+
+    with stat_col4:
+        avg_energy = round(filtered_df['energy'].mean(), 2)
+        st.metric("Avg. Energy", f"{avg_energy}")
+
+    # Row 1: Main visualizations
+    st.subheader("🎵 Audio Features Analysis")
+    row1_col1, row1_col2 = st.columns(2)
+
+    with row1_col1:
+        # Radar chart for audio features
+        st.write("##### Audio Feature Comparison")
+        features = ['danceability', 'energy', 'valence', 'acousticness', 'speechiness']
+        avg_features = filtered_df[features].mean().values.tolist()
+
+        # Create radar chart
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_subplot(111, polar=True)
+
+        # Plot the average values
+        angles = np.linspace(0, 2 * np.pi, len(features), endpoint=False).tolist()
+        avg_features = avg_features + [avg_features[0]]  # Close the loop
+        angles = angles + [angles[0]]  # Close the loop
+        features = features + [features[0]]  # Close the loop
+
+        ax.plot(angles, avg_features, 'o-', linewidth=2, color="#BB86FC")
+        ax.fill(angles, avg_features, alpha=0.25, color="#BB86FC")
+
+        # Set labels and style
+        ax.set_thetagrids(np.degrees(angles[:-1]), features[:-1])
+        ax.set_ylim(0, 1)
+        ax.set_facecolor('#121212')
+        ax.tick_params(colors="#BB86FC")
+        plt.title('Audio Feature Profile', color="#BB86FC", y=1.1)
+
+        st.pyplot(fig)
+
+    with row1_col2:
+        st.write("##### Genres & Their Subgenres")
+        genres = {
+            "Pop": ["Dance Pop", "Electropop", "Indie Poptimism"],
+            "Rock": ["Classic Rock", "Hard Rock", "Permanent Wave"],
+            "Latin": ["Reggaeton", "Latin Pop", "Tropical"],
+            "R&B": ["Neo Soul", "Urban Contemporary", "Hip Pop"],
+            "Rap": ["Trap", "Gangster Rap", "Southern Hip Hop"],
+            "EDM": ["Big Room", "Electro House", "Progressive Electro House"]
+        }
+
+        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
+        labels = list(genres.keys())
+        subgenres = [", ".join(sub) for sub in genres.values()]
+        angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
+
+        # Add bars for each genre
+        for i, (label, subgenre) in enumerate(zip(labels, subgenres)):
+            ax.bar(angles[i], 1, width=0.3, color=plt.cm.tab10(i), edgecolor="white", alpha=0.8)
+            ax.text(angles[i], 1.2, label, ha='center', va='center', fontsize=12, color="#BB86FC")
+            ax.text(angles[i], 0.5, subgenre, ha='center', va='center', fontsize=10, wrap=True, color="#BB86FC")
+
+        ax.set_yticks([])
+        ax.set_xticks([])
+        ax.set_title("Genres & Their Subgenres", fontsize=14, color="#BB86FC", pad=20)
+        ax.set_facecolor('#121212')
+
+        st.pyplot(fig)
+
+    # Row 2: Feature Distributions
+    st.subheader("📊 Feature Distributions")
+
+    # Select feature for analysis
+    selected_feature = st.selectbox(
+        "Select Feature",
+        ["danceability", "energy", "valence", "acousticness", "instrumentalness", "tempo", "loudness", "speechiness"]
+    )
+
+    row2_col1, row2_col2 = st.columns(2)
+
+    with row2_col1:
+        # Distribution comparison by genre
+        st.write(f"##### {selected_feature.capitalize()} by Genre")
+        
+        # Create boxplot for feature across genres
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.boxplot(x='playlist_genre', y=selected_feature, data=filtered_df, palette="plasma", ax=ax)
+        
+        ax.set_facecolor('#121212')
+        ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha='right')
+        ax.set_title(f"{selected_feature.capitalize()} Distribution by Genre", color="#BB86FC")
+        ax.set_xlabel("Genre", color="#BB86FC")
+        ax.set_ylabel(selected_feature.capitalize(), color="#BB86FC")
+        ax.tick_params(colors="#BB86FC")
+        plt.setp(ax.spines.values(), color="#BB86FC")
+        
+        plt.tight_layout()
+        st.pyplot(fig)
+
+    with row2_col2:
+        # Scatter plot comparing features
+        st.write("##### Feature Relationships")
+        
+        # Select second feature for comparison
+        other_features = [f for f in ["danceability", "energy", "valence", "acousticness", "tempo"] if f != selected_feature]
+        compare_feature = st.selectbox("Compare With", other_features)
+        
+        # Create scatter plot
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.scatterplot(x=selected_feature, y=compare_feature, data=filtered_df, hue='playlist_genre', palette="plasma", alpha=0.7, ax=ax)
+        
+        ax.set_facecolor('#121212')
+        ax.set_title(f"{selected_feature.capitalize()} vs {compare_feature.capitalize()}", color="#BB86FC")
         ax.set_xlabel(selected_feature.capitalize(), color="#BB86FC")
-        ax.set_ylabel("Frequency", color="#BB86FC")
+        ax.set_ylabel(compare_feature.capitalize(), color="#BB86FC")
         ax.tick_params(colors="#BB86FC")
         plt.setp(ax.spines.values(), color="#BB86FC")
+        
+        # Get legend to display nicely
+        plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', title="Genre")
+        plt.tight_layout()
         st.pyplot(fig)
 
-    with col2:
-        # Bar graph for genre counts
-        st.subheader("Genre Distribution")
-        genre_counts = filtered_df['playlist_genre'].value_counts()
-        fig, ax = plt.subplots(figsize=(4, 4))
-        sns.barplot(x=genre_counts.values, y=genre_counts.index, palette="plasma", ax=ax)
-        ax.set_facecolor('#000000')
-        ax.set_title("Genre Distribution", color="#BB86FC")
-        ax.set_xlabel("Number of Songs", color="#BB86FC")
-        ax.set_ylabel("Genre", color="#BB86FC")
-        ax.tick_params(colors="#BB86FC")
-        plt.setp(ax.spines.values(), color="#BB86FC")
-        st.pyplot(fig)
+    # Row 3: Temporal analysis
+    st.subheader("⏳ Trends Over Time")
+    filtered_df['year'] = filtered_df['track_album_release_date'].str[:4].astype(int)
 
-    with col3:
-        # Line chart for temporal trends
-        st.subheader("Temporal Trends")
-        filtered_df['year'] = filtered_df['track_album_release_date'].str[:4].astype(int)
-        yearly_data = filtered_df.groupby('year').agg({
-            'track_popularity': 'mean',
-            'danceability': 'mean',
-            'energy': 'mean',
-            'valence': 'mean'
-        }).reset_index()
-        fig, ax = plt.subplots(figsize=(4, 4))
-        for col in ['danceability', 'energy', 'valence']:
-            ax.plot(yearly_data['year'], yearly_data[col], label=col.capitalize(), linewidth=2)
-        ax.legend(facecolor='#000000', edgecolor='#BB86FC', labelcolor='#BB86FC')
-        ax.set_facecolor('#000000')
-        ax.set_title("Audio Features Over Time", color="#BB86FC")
+    # Group data by year and calculate means
+    yearly_data = filtered_df.groupby('year').agg({
+        'track_popularity': 'mean',
+        'danceability': 'mean',
+        'energy': 'mean',
+        'valence': 'mean',
+        'track_id': 'count'  # Count songs per year
+    }).reset_index()
+    yearly_data.rename(columns={'track_id': 'song_count'}, inplace=True)
+
+    row3_col1, row3_col2 = st.columns(2)
+
+    with row3_col1:
+        # Line chart for features over time
+        st.write("##### Audio Features Trends")
+        
+        # Allow user to select which features to display
+        time_features = st.multiselect(
+            "Select Features to Display",
+            ['danceability', 'energy', 'valence', 'track_popularity'],
+            default=['danceability', 'energy', 'valence']
+        )
+        
+        if time_features:
+            fig, ax = plt.subplots(figsize=(8, 6))
+            
+            for col in time_features:
+                label = "Popularity" if col == "track_popularity" else col.capitalize()
+                value_col = col
+                
+                # Normalize popularity to 0-1 scale if selected
+                if col == 'track_popularity':
+                    yearly_data['track_popularity_norm'] = yearly_data['track_popularity'] / 100
+                    value_col = 'track_popularity_norm'
+                    
+                ax.plot(yearly_data['year'], yearly_data[value_col], 
+                        label=label, linewidth=2, marker='o')
+            
+            ax.set_facecolor('#121212')
+            ax.set_title("Audio Features Over Time", color="#BB86FC")
+            ax.set_xlabel("Year", color="#BB86FC")
+            ax.set_ylabel("Feature Value (0-1 scale)", color="#BB86FC")
+            ax.tick_params(colors="#BB86FC")
+            ax.legend(facecolor='#121212', edgecolor='#BB86FC', labelcolor='#BB86FC')
+            plt.setp(ax.spines.values(), color="#BB86FC")
+            
+            plt.tight_layout()
+            st.pyplot(fig)
+        else:
+            st.info("Select at least one feature to display")
+
+    with row3_col2:
+        # Song count by year
+        st.write("##### Music Production by Year")
+        
+        fig, ax = plt.subplots(figsize=(8, 6))
+        sns.barplot(x='year', y='song_count', data=yearly_data, color="#BB86FC", ax=ax)
+        
+        ax.set_facecolor('#121212')
+        ax.set_title("Number of Songs Released by Year", color="#BB86FC")
         ax.set_xlabel("Year", color="#BB86FC")
-        ax.set_ylabel("Feature Value", color="#BB86FC")
-        ax.tick_params(colors="#BB86FC")
+        ax.set_ylabel("Number of Songs", color="#BB86FC")
+        ax.tick_params(colors="#BB86FC", rotation=45)
         plt.setp(ax.spines.values(), color="#BB86FC")
+        
+        plt.tight_layout()
         st.pyplot(fig)
-
-    # with col1:
-    #     # Genre distribution
-    #     st.subheader("Genre Distribution")
-    #     genre_counts = filtered_df['playlist_genre'].value_counts()
-    #     fig, ax = plt.subplots(figsize=(4, 4))
-    #     ax.pie(genre_counts, labels=genre_counts.index, 
-    #            colors=plt.cm.plasma(np.linspace(0, 1, len(genre_counts))),
-    #            wedgeprops=dict(edgecolor='#BB86FC', linewidth=2))
-    #     ax.set_facecolor('#000000')
-    #     st.pyplot(fig)
-
-    # with col2:
-    #     # Feature correlation
-    #     st.subheader("Feature Correlation")
-    #     features = ['danceability', 'energy', 'loudness', 'speechiness', 
-    #                 'acousticness', 'instrumentalness', 'liveness', 'valence', 'tempo']
-    #     corr = filtered_df[features].corr()
-    #     fig, ax = plt.subplots(figsize=(4, 4))
-    #     sns.heatmap(corr, annot=False, cmap='plasma', cbar=False, ax=ax)
-    #     ax.set_facecolor('#000000')
-    #     st.pyplot(fig)
-
-    # with col3:
-    #     # Temporal trends
-    #     st.subheader("Temporal Trends")
-    #     filtered_df['year'] = filtered_df['track_album_release_date'].str[:4].astype(int)
-    #     yearly_data = filtered_df.groupby('year').agg({
-    #         'track_popularity': 'mean',
-    #         'danceability': 'mean',
-    #         'energy': 'mean',
-    #         'valence': 'mean'
-    #     }).reset_index()
-    #     fig, ax = plt.subplots(figsize=(4, 4))
-    #     for col in ['danceability', 'energy', 'valence']:
-    #         ax.plot(yearly_data['year'], yearly_data[col], label=col.capitalize(), linewidth=2)
-    #     ax.legend(facecolor='#000000', edgecolor='#BB86FC', labelcolor='#BB86FC')
-    #     ax.set_facecolor('#000000')
-    #     st.pyplot(fig)
 
 with tab2:
     st.header("Top Artists")
