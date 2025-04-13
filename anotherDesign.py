@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 # Set up the page
-st.set_page_config(layout="wide", page_title="Spotify Pulse", page_icon="🎧")
+st.set_page_config(layout="wide", page_title="Muzify", page_icon="🎧")
 
 # Custom styling
 st.markdown("""
@@ -65,7 +65,7 @@ filtered_df = df[
 ]
 
 # Dashboard title
-st.title("SPOTIFY PULSE")
+st.title("MUZIFY")
 st.markdown("### Futuristic Music Analytics Dashboard")
 
 # Tabs for Analysis, Top Artists, and Song Recommendation
@@ -93,63 +93,81 @@ with tab1:
         st.metric("Avg. Energy", f"{avg_energy}")
 
     # Row 1: Main visualizations
-    st.subheader("🎵 Audio Features Analysis")
+    st.subheader("🎵 Audio Features Dashboard")
+  
+    # Row 1: Future Trend & Genre Wheel Donut
     row1_col1, row1_col2 = st.columns(2)
 
     with row1_col1:
-        # Radar chart for audio features
-        st.write("##### Audio Feature Comparison")
-        features = ['danceability', 'energy', 'valence', 'acousticness', 'speechiness']
-        avg_features = filtered_df[features].mean().values.tolist()
+        st.markdown("### <span style='color:#BB86FC'>Future Trend</span>", unsafe_allow_html=True)
+        filtered_df['release_year'] = pd.to_datetime(filtered_df['track_album_release_date'], errors='coerce').dt.year
+        yearly_popularity = filtered_df.groupby('release_year')['track_popularity'].mean().dropna()
 
-        # Create radar chart
-        fig = plt.figure(figsize=(6, 6))
-        ax = fig.add_subplot(111, polar=True)
-
-        # Plot the average values
-        angles = np.linspace(0, 2 * np.pi, len(features), endpoint=False).tolist()
-        avg_features = avg_features + [avg_features[0]]  # Close the loop
-        angles = angles + [angles[0]]  # Close the loop
-        features = features + [features[0]]  # Close the loop
-
-        ax.plot(angles, avg_features, 'o-', linewidth=2, color="#BB86FC")
-        ax.fill(angles, avg_features, alpha=0.25, color="#BB86FC")
-
-        # Set labels and style
-        ax.set_thetagrids(np.degrees(angles[:-1]), features[:-1])
-        ax.set_ylim(0, 1)
+        fig, ax = plt.subplots()
+        ax.plot(yearly_popularity.index, yearly_popularity.values, marker='o', color="#BB86FC", linewidth=2)
         ax.set_facecolor('#121212')
+        ax.set_title("Average Track Popularity by Year", color="#BB86FC")
+        ax.set_xlabel("Release Year", color="#BB86FC")
+        ax.set_ylabel("Popularity", color="#BB86FC")
         ax.tick_params(colors="#BB86FC")
-        plt.title('Audio Feature Profile', color="#BB86FC", y=1.1)
-
         st.pyplot(fig)
 
     with row1_col2:
-        st.write("##### Genres & Their Subgenres")
-        genres = {
-            "Pop": ["Dance Pop", "Electropop", "Indie Poptimism"],
-            "Rock": ["Classic Rock", "Hard Rock", "Permanent Wave"],
-            "Latin": ["Reggaeton", "Latin Pop", "Tropical"],
-            "R&B": ["Neo Soul", "Urban Contemporary", "Hip Pop"],
-            "Rap": ["Trap", "Gangster Rap", "Southern Hip Hop"],
-            "EDM": ["Big Room", "Electro House", "Progressive Electro House"]
-        }
-
-        fig, ax = plt.subplots(figsize=(8, 8), subplot_kw=dict(polar=True))
-        labels = list(genres.keys())
-        subgenres = [", ".join(sub) for sub in genres.values()]
-        angles = np.linspace(0, 2 * np.pi, len(labels), endpoint=False).tolist()
-
-        # Add bars for each genre
-        for i, (label, subgenre) in enumerate(zip(labels, subgenres)):
-            ax.bar(angles[i], 1, width=0.3, color=plt.cm.tab10(i), edgecolor="white", alpha=0.8)
-            ax.text(angles[i], 1.2, label, ha='center', va='center', fontsize=12, color="#BB86FC")
-            ax.text(angles[i], 0.5, subgenre, ha='center', va='center', fontsize=10, wrap=True, color="#BB86FC")
-
-        ax.set_yticks([])
-        ax.set_xticks([])
-        ax.set_title("Genres & Their Subgenres", fontsize=14, color="#BB86FC", pad=20)
+        st.markdown("### <span style='color:#BB86FC'>Interactive Genre Wheel</span>", unsafe_allow_html=True)
+        genre_counts = filtered_df['playlist_genre'].value_counts()
+        labels = genre_counts.index.tolist()
+        sizes = genre_counts.values.tolist()
+        fig, ax = plt.subplots(figsize=(6, 6))
+        colors = plt.cm.Set3(np.linspace(0, 1, len(labels)))
+        wedges, texts = ax.pie(sizes, labels=labels, startangle=90, colors=colors, textprops={'color':'#BB86FC'})
+        centre_circle = plt.Circle((0, 0), 0.60, fc='#121212')
+        fig.gca().add_artist(centre_circle)
         ax.set_facecolor('#121212')
+        ax.set_title("Genre Distribution", color="#BB86FC")
+        st.pyplot(fig)
+
+    # Row 2: Mood Matrix & Guess-the-Song Interface
+    row2_col1, row2_col2 = st.columns(2)
+
+    with row2_col1:
+        st.write("##### Mood Matrix (Valence vs Energy)")
+        fig, ax = plt.subplots()
+        ax.set_facecolor('#121212')
+        scatter = ax.scatter(
+            filtered_df['valence'],
+            filtered_df['energy'],
+            alpha=0.6,
+            c=filtered_df['danceability'],
+            cmap='cool',
+            edgecolors='w'
+        )
+        ax.set_xlabel('Valence', color="#BB86FC")
+        ax.set_ylabel('Energy', color="#BB86FC")
+        ax.set_title("Mood Matrix", color="#BB86FC")
+        ax.tick_params(colors="#BB86FC")
+        plt.colorbar(scatter, label='Danceability')
+        st.pyplot(fig)
+
+    with row2_col2:
+        st.write("##### Guess The Song Mood")
+        random_song = filtered_df.sample(1)
+        features = ['danceability', 'energy', 'valence', 'acousticness', 'speechiness']
+        song_features = random_song[features].values.flatten().tolist()
+
+        fig = plt.figure(figsize=(6, 6))
+        ax = fig.add_subplot(111, polar=True)
+        angles = np.linspace(0, 2 * np.pi, len(features), endpoint=False).tolist()
+        song_features += [song_features[0]]
+        angles += [angles[0]]
+        features += [features[0]]
+
+        ax.plot(angles, song_features, 'o-', linewidth=2, color="#03DAC6")
+        ax.fill(angles, song_features, alpha=0.25, color="#03DAC6")
+        ax.set_thetagrids(np.degrees(angles[:-1]), features[:-1])
+        ax.set_ylim(0, 1)
+        ax.set_facecolor('#121212')
+        ax.tick_params(colors="#03DAC6")
+        plt.title('Can You Guess the Mood?', color="#03DAC6", y=1.1)
 
         st.pyplot(fig)
 
